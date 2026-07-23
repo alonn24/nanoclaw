@@ -17,11 +17,22 @@ const envConfig = readEnvFile([
   'NANOCLAW_EGRESS_LOCKDOWN',
   'NANOCLAW_EGRESS_NETWORK',
   'ONECLI_GATEWAY_CONTAINER',
+  'WHATSAPP_SELF_MESSAGE_GROUPS',
 ]);
 
 export const ASSISTANT_NAME = process.env.ASSISTANT_NAME || envConfig.ASSISTANT_NAME || 'Andy';
 export const ASSISTANT_HAS_OWN_NUMBER =
   (process.env.ASSISTANT_HAS_OWN_NUMBER || envConfig.ASSISTANT_HAS_OWN_NUMBER) === 'true';
+// Group JIDs where the account's own fromMe=true messages are still processed
+// (subject to the isBotMessage prefix check) instead of blanket-skipped. Scoped
+// allowlist so testing in one group doesn't loosen echo-loop protection everywhere
+// the bot's shared personal number participates.
+export const WHATSAPP_SELF_MESSAGE_GROUPS = new Set(
+  (process.env.WHATSAPP_SELF_MESSAGE_GROUPS || envConfig.WHATSAPP_SELF_MESSAGE_GROUPS || '')
+    .split(',')
+    .map((jid) => jid.trim())
+    .filter(Boolean),
+);
 
 // Absolute paths needed for container mounts
 const PROJECT_ROOT = process.cwd();

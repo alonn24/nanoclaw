@@ -163,32 +163,36 @@ export async function run(args: string[]): Promise<void> {
     log.info('Created messaging group', { id: mgId, channel: parsed.channel, platformId: parsed.platformId });
   }
 
-  // 3. Wire agent to messaging group — createMessagingGroupAgent auto-creates
-  // the companion agent_destinations row so delivery's ACL admits this target.
+  // 3. Wire agent to messaging group. No destination row is auto-created
+  // (skipDestination) — new channels start silent and un-sendable until an
+  // operator explicitly opts them in.
   let newlyWired = false;
   const existing = getMessagingGroupAgentByPair(messagingGroup.id, agentGroup.id);
   if (!existing) {
     newlyWired = true;
     const mgaId = generateId('mga');
-    // Mirrors scripts/init-first-agent.ts:wireIfMissing so both setup paths
-    // create rows with the same shape. Groups default to 'mention' (bot only
-    // responds when addressed); DMs default to 'pattern'/'.' (respond to
-    // every message). An explicit --trigger overrides the pattern regex.
-    const isGroup = messagingGroup.is_group === 1;
-    const engageMode: 'pattern' | 'mention' = isGroup && !parsed.trigger ? 'mention' : 'pattern';
-    const engagePattern: string | null = engageMode === 'pattern' ? parsed.trigger || '.' : null;
-    createMessagingGroupAgent({
-      id: mgaId,
-      messaging_group_id: messagingGroup.id,
-      agent_group_id: agentGroup.id,
-      engage_mode: engageMode,
-      engage_pattern: engagePattern,
-      sender_scope: 'all',
-      ignored_message_policy: 'drop',
-      session_mode: parsed.sessionMode as 'shared' | 'per-thread' | 'agent-shared',
-      priority: 0,
-      created_at: new Date().toISOString(),
-    });
+    // New channels default to never-engage ('(?!)') so a freshly wired
+    // channel doesn't start responding until an operator explicitly opts
+    // it in. An explicit --trigger overrides the pattern regex. Messages
+    // are still accumulated as background context, and no destination row
+    // is auto-created.
+    const engageMode: 'pattern' | 'mention' = 'pattern';
+    const engagePattern: string | null = parsed.trigger || '(?!)';
+    createMessagingGroupAgent(
+      {
+        id: mgaId,
+        messaging_group_id: messagingGroup.id,
+        agent_group_id: agentGroup.id,
+        engage_mode: engageMode,
+        engage_pattern: engagePattern,
+        sender_scope: 'all',
+        ignored_message_policy: 'accumulate',
+        session_mode: parsed.sessionMode as 'shared' | 'per-thread' | 'agent-shared',
+        priority: 0,
+        created_at: new Date().toISOString(),
+      },
+      { skipDestination: true },
+    );
     log.info('Wired agent to messaging group', {
       mgaId,
       agentGroup: agentGroup.id,

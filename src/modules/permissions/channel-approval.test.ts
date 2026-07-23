@@ -189,7 +189,7 @@ describe('unknown-channel registration flow', () => {
     expect(count).toBe(1);
   });
 
-  it('approve → creates wiring, admits triggering sender, replays', async () => {
+  it('approve → creates wiring (never-engage default), admits triggering sender, replays', async () => {
     const { routeInbound } = await import('../../router.js');
     const { getResponseHandlers } = await import('../../response-registry.js');
     const { wakeContainer } = await import('../../container-runner.js');
@@ -228,8 +228,8 @@ describe('unknown-channel registration flow', () => {
       agent_group_id: string;
     };
     expect(mga).toBeDefined();
-    expect(mga.engage_mode).toBe('mention-sticky'); // group (threadId != null)
-    expect(mga.engage_pattern).toBeNull();
+    expect(mga.engage_mode).toBe('pattern'); // never-engage default, regardless of group vs DM
+    expect(mga.engage_pattern).toBe('(?!)');
     expect(mga.sender_scope).toBe('known');
     expect(mga.ignored_message_policy).toBe('accumulate');
     expect(mga.agent_group_id).toBe('ag-1');
@@ -241,14 +241,16 @@ describe('unknown-channel registration flow', () => {
       .get('telegram:caller', 'ag-1');
     expect(member).toBeDefined();
 
-    // Pending row cleared and container woken via replay.
+    // Pending row cleared. Replay does NOT wake the container — the
+    // never-engage default pattern means the replayed message is
+    // accumulated as background context but doesn't trigger engagement.
     const stillPending = (getDb().prepare('SELECT COUNT(*) AS c FROM pending_channel_approvals').get() as { c: number })
       .c;
     expect(stillPending).toBe(0);
-    expect(wakeContainer).toHaveBeenCalled();
+    expect(wakeContainer).not.toHaveBeenCalled();
   });
 
-  it('approve on a DM wires with pattern="." defaults', async () => {
+  it('approve on a DM wires with never-engage pattern="(?!)" default', async () => {
     const { routeInbound } = await import('../../router.js');
     const { getResponseHandlers } = await import('../../response-registry.js');
 
@@ -276,7 +278,7 @@ describe('unknown-channel registration flow', () => {
       .prepare('SELECT engage_mode, engage_pattern FROM messaging_group_agents WHERE messaging_group_id = ?')
       .get(pending.messaging_group_id) as { engage_mode: string; engage_pattern: string };
     expect(mga.engage_mode).toBe('pattern');
-    expect(mga.engage_pattern).toBe('.');
+    expect(mga.engage_pattern).toBe('(?!)');
   });
 
   it('deny → sets denied_at; future mentions drop silently without a second card', async () => {

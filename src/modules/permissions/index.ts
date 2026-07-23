@@ -467,23 +467,27 @@ async function handleChannelApprovalResponse(payload: ResponsePayload): Promise<
     return true;
   }
 
-  const isGroup = event.threadId !== null;
-  const engageMode: MessagingGroupAgent['engage_mode'] = isGroup ? 'mention-sticky' : 'pattern';
-  const engagePattern = isGroup ? null : '.';
+  // New channels default to never-engage: an operator must explicitly
+  // re-pattern them (or unwire) before the agent responds.
+  const engageMode: MessagingGroupAgent['engage_mode'] = 'pattern';
+  const engagePattern = '(?!)';
 
   const mgaId = `mga-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  createMessagingGroupAgent({
-    id: mgaId,
-    messaging_group_id: row.messaging_group_id,
-    agent_group_id: targetAgentGroupId,
-    engage_mode: engageMode,
-    engage_pattern: engagePattern,
-    sender_scope: 'known',
-    ignored_message_policy: 'accumulate',
-    session_mode: 'shared',
-    priority: 0,
-    created_at: new Date().toISOString(),
-  });
+  createMessagingGroupAgent(
+    {
+      id: mgaId,
+      messaging_group_id: row.messaging_group_id,
+      agent_group_id: targetAgentGroupId,
+      engage_mode: engageMode,
+      engage_pattern: engagePattern,
+      sender_scope: 'known',
+      ignored_message_policy: 'accumulate',
+      session_mode: 'shared',
+      priority: 0,
+      created_at: new Date().toISOString(),
+    },
+    { skipDestination: true },
+  );
   log.info('Channel registration approved — wiring created', {
     messagingGroupId: row.messaging_group_id,
     agentGroupId: targetAgentGroupId,
@@ -567,23 +571,27 @@ registerMessageInterceptor(async (event: InboundEvent): Promise<boolean> => {
     return true;
   }
 
-  const isGroup = originalEvent.threadId !== null;
-  const engageMode: MessagingGroupAgent['engage_mode'] = isGroup ? 'mention-sticky' : 'pattern';
-  const engagePattern = isGroup ? null : '.';
+  // New channels default to never-engage: an operator must explicitly
+  // re-pattern them (or unwire) before the agent responds.
+  const engageMode: MessagingGroupAgent['engage_mode'] = 'pattern';
+  const engagePattern = '(?!)';
 
   const mgaId = `mga-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  createMessagingGroupAgent({
-    id: mgaId,
-    messaging_group_id: row.messaging_group_id,
-    agent_group_id: ag.id,
-    engage_mode: engageMode,
-    engage_pattern: engagePattern,
-    sender_scope: 'known',
-    ignored_message_policy: 'accumulate',
-    session_mode: 'shared',
-    priority: 0,
-    created_at: new Date().toISOString(),
-  });
+  createMessagingGroupAgent(
+    {
+      id: mgaId,
+      messaging_group_id: row.messaging_group_id,
+      agent_group_id: ag.id,
+      engage_mode: engageMode,
+      engage_pattern: engagePattern,
+      sender_scope: 'known',
+      ignored_message_policy: 'accumulate',
+      session_mode: 'shared',
+      priority: 0,
+      created_at: new Date().toISOString(),
+    },
+    { skipDestination: true },
+  );
   log.info('Channel registration approved — wiring created', {
     messagingGroupId: row.messaging_group_id,
     agentGroupId: ag.id,

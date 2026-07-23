@@ -168,7 +168,17 @@ function formatChatMessages(messages: MessageInRow[]): string {
 
 function formatSingleChat(msg: MessageInRow): string {
   const content = parseContent(msg.content);
-  const sender = content.sender || content.author?.fullName || content.author?.userName || 'Unknown';
+  // Prefer a human-readable display name over a raw platform id. Some
+  // adapters (WhatsApp) put the JID/phone number in `sender` and the actual
+  // display name in `senderName`; others (Telegram) already put the name in
+  // `sender`. Checking `senderName` first keeps both conventions working.
+  const senderId = content.sender || content.author?.userId;
+  const sender = content.senderName || senderId || content.author?.fullName || content.author?.userName || 'Unknown';
+  // Surface the raw platform id alongside the display name (when they
+  // differ) so the agent can still tell apart same-named contacts and match
+  // against ids it already knows from memory — dropping it entirely loses
+  // information the name alone doesn't carry.
+  const senderIdAttr = senderId && senderId !== sender ? ` sender_id="${escapeXml(String(senderId))}"` : '';
   const time = formatLocalTime(msg.timestamp, TIMEZONE);
   const text = content.text || '';
   const idAttr = msg.seq != null ? ` id="${msg.seq}"` : '';
@@ -178,7 +188,7 @@ function formatSingleChat(msg: MessageInRow): string {
 
   const fromAttr = originAttr(msg);
 
-  return `<message${idAttr}${fromAttr} sender="${escapeXml(sender)}" time="${escapeXml(time)}"${replyAttr}>${replyPrefix}${escapeXml(text)}${attachmentsSuffix}</message>`;
+  return `<message${idAttr}${fromAttr} sender="${escapeXml(sender)}"${senderIdAttr} time="${escapeXml(time)}"${replyAttr}>${replyPrefix}${escapeXml(text)}${attachmentsSuffix}</message>`;
 }
 
 /**

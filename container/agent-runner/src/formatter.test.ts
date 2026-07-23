@@ -62,6 +62,33 @@ describe('context timezone header', () => {
   });
 });
 
+describe('sender display name', () => {
+  // WhatsApp puts the raw JID/phone number in `sender` and the human-readable
+  // pushName in `senderName`; Telegram already puts the name in `sender` and
+  // has no `senderName`. Preferring `senderName` for the display name — while
+  // still surfacing the raw id via `sender_id` — keeps both adapter
+  // conventions working without losing the id the name alone doesn't carry
+  // (e.g. disambiguating two contacts with the same first name).
+  it('prefers senderName as the display name and keeps the raw id as sender_id', () => {
+    insertMessage('m1', 'chat', { sender: '972545335994@s.whatsapp.net', senderName: 'Yulia', text: 'hi' });
+    const result = formatMessages(getPendingMessages());
+    expect(result).toContain('sender="Yulia"');
+    expect(result).toContain('sender_id="972545335994@s.whatsapp.net"');
+  });
+
+  it('falls back to sender as the display name when senderName is absent', () => {
+    insertMessage('m1', 'chat', { sender: 'Alice', text: 'hi' });
+    const result = formatMessages(getPendingMessages());
+    expect(result).toContain('sender="Alice"');
+  });
+
+  it('omits sender_id when sender already equals the display name', () => {
+    insertMessage('m1', 'chat', { sender: 'Alice', text: 'hi' });
+    const result = formatMessages(getPendingMessages());
+    expect(result).not.toContain('sender_id');
+  });
+});
+
 describe('multi-message chat batches', () => {
   // Regression guard for #2555: an outer `<messages>` envelope around
   // multiple chat messages caused the Claude Agent SDK to emit a synthetic

@@ -167,7 +167,7 @@ export function setMessagingGroupDeniedAt(id: string, deniedAt: string | null): 
  * a numeric suffix to break collisions within the agent's namespace. This
  * mirrors the backfill logic in migration 004.
  */
-export function createMessagingGroupAgent(mga: MessagingGroupAgent): void {
+export function createMessagingGroupAgent(mga: MessagingGroupAgent, options?: { skipDestination?: boolean }): void {
   getDb()
     .prepare(
       `INSERT INTO messaging_group_agents (
@@ -182,6 +182,8 @@ export function createMessagingGroupAgent(mga: MessagingGroupAgent): void {
        )`,
     )
     .run(mga);
+
+  if (options?.skipDestination) return;
 
   // Auto-create an agent_destinations row so delivery's ACL doesn't block
   // outbound messages that target this chat. Guarded: when the agent-to-agent
